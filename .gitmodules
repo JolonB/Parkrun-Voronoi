@@ -1,0 +1,3 @@
+[submodule "lib/parkrun_api"]
+	path = lib/parkrun_api
+	url = https://github.com/BadgerHobbs/Parkrun-API-Python.git
