@@ -2,9 +2,6 @@
 import numpy as np
 from PIL import Image
 
-import sys
-np.set_printoptions(threshold=sys.maxsize)
-
 import libs.parkrun_api.parkrun_api as parkrun
 import libs.coordinates as coords
 
