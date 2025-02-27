@@ -10,8 +10,10 @@ import libs.parkrun_api.parkrun_api as parkrun
 import libs.coordinates as coords
 
 events: List[parkrun.Event] = parkrun.Event.GetAllEvents()
+adult_events = [event for event in events if event.seriesId == 1]
+junior_events = [event for event in events if event.seriesId == 2]
 
-points = [coords.latlon_to_ecef(event.latitude, event.longitude) for event in events][:257]  # TODO fails at 258
+points = [coords.latlon_to_ecef(event.latitude, event.longitude) for event in adult_events]
 points_norm = np.array([point / np.linalg.norm(point) for point in points])  # TODO probably doesn't need to be normalised
 # print(points_norm)
 
