@@ -9,6 +9,7 @@ from scipy.spatial import SphericalVoronoi, geometric_slerp
 import libs.parkrun_api.parkrun_api as parkrun
 import libs.coordinates as coords
 import libs.projections as proj
+import libs.mapping as mapping
 
 GENERATE_SPHERE_PLOT = False
 
@@ -67,6 +68,8 @@ if GENERATE_SPHERE_PLOT:
 ########################################
 # FLATTEN IMAGE
 ########################################
+
+flat_map = mapping.Map(mapping.MapType.MERCATOR)
 
 class Shape:
     PLUS = 0

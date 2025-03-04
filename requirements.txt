@@ -4,3 +4,5 @@ scipy~=1.10.0
 requests~=2.22.0
 beautifulsoup4~=4.13.0
 pyproj~=3.5.0
+basemap~=1.4.1
+basemap-data-hires~=1.3.2
