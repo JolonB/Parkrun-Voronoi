@@ -12,6 +12,8 @@ import libs.projections as proj
 import libs.mapping as mapping
 
 GENERATE_SPHERE_PLOT = False
+DRAW_VORONOI_VERTICES = False
+DRAW_EVENT_POINTS = True
 
 print("Getting parkrun events")
 events: List[parkrun.Event] = parkrun.Event.GetAllEvents()
@@ -69,57 +71,7 @@ if GENERATE_SPHERE_PLOT:
 # FLATTEN IMAGE
 ########################################
 
-flat_map = mapping.Map(mapping.MapType.MERCATOR)
-
-class Shape:
-    PLUS = 0
-    CROSS = 1
-    POINT = 3
-
-def add_latlon_to_map(latitude: float, longitude: float, img: np.ndarray, shape: Shape):
-    # Skip points if above or below mercator projection
-    if latitude < -85 or latitude > 85:
-        return
-    merc_x, merc_y = proj.latlon_to_mercator(latitude, longitude)
-    merc_x, merc_y = proj.mercator_to_array(merc_x, merc_y, MAP_WIDTH, MAP_HEIGHT)
-    img[merc_y, merc_x] = 0
-    # Draw rest of shape, being aware of the bounds of the image
-    if shape == Shape.PLUS:
-        try:
-            img[merc_y-1, merc_x] = 0
-        except IndexError:
-            pass
-        try:
-            img[merc_y+1, merc_x] = 0
-        except IndexError:
-            pass
-        try:
-            img[merc_y, merc_x-1] = 0
-        except IndexError:
-            pass
-        try:
-            img[merc_y, merc_x+1] = 0
-        except IndexError:
-            pass
-    elif shape == Shape.CROSS:
-        try:
-            img[merc_y-1, merc_x-1] = 0
-        except IndexError:
-            pass
-        try:
-            img[merc_y-1, merc_x+1] = 0
-        except IndexError:
-            pass
-        try:
-            img[merc_y+1, merc_x-1] = 0
-        except IndexError:
-            pass
-        try:
-            img[merc_y+1, merc_x+1] = 0
-        except IndexError:
-            pass
-    elif shape == Shape.POINT:
-        pass  # no more needs to be drawn
+flat_map = mapping.Map(mapping.MapType.MERCATOR, quality='l')
 
 print("Converting voronoi vertices to latlon")
 vertices_latlon = np.zeros((len(sv.vertices), 2))
@@ -130,61 +82,23 @@ for index, vertex in enumerate(sv.vertices):
     elif round(vertices_latlon[index][1], 2) == 42.40:
         breakpoint()
 
-MAP_WIDTH = 2044
-MAP_HEIGHT = 2044
-img_buffer = np.ones((MAP_HEIGHT, MAP_WIDTH), dtype=np.uint8) * 255
-
-print("Adding edges to map")
-for region in sv.regions[:100]:
+print("Drawing great circles")
+for region in sv.regions:
     n = len(region)
     for i in range(n):
-        start = sv.vertices[region][i]
-        end = sv.vertices[region][(i + 1) % n]
-        # t_vals = np.linspace(0, 1, proj.pixels_between_mercator_points(*start, *end, MAP_WIDTH, MAP_HEIGHT))
+        start = vertices_latlon[region][i]
+        end = vertices_latlon[region][(i + 1) % n]
         try:
-            edge_ecef = geometric_slerp(start, end, t_vals)
-        except ValueError as e:
-            print(e)
-            print((start, end))
-        edge_latlon = []
-        for point_ecef in edge_ecef:
-            point_latlon = proj.ecef_to_latlon(*point_ecef)
-            try:
-                if np.all(np.round(edge_latlon[-1], 2) == np.round(point_latlon, 2)):
-                    continue
-            except IndexError as e:
-                pass
-            edge_latlon.append(point_latlon)
-        # breakpoint()  # TODO why aren't these coordinates being put in the correct location?
-        ## TODO perhaps something to do with ecef_to_latlon
-        # edge_latlon = [coords.ecef_to_latlon(*point) for point in edge_ecef]
-        for point in edge_latlon:
-            try:
-                add_latlon_to_map(point[0], point[1], img_buffer, Shape.POINT)
-                # print("Drawing {}".format(point))
-            except Exception as e:
-                print(e)
-                print((start, end))
-                print((edge_latlon[0], edge_latlon[-1]))
-                print(point)
+            flat_map.drawgreatcircle_simple(start, end, method=mapping.GreatCircleMethod.REDRAW, linewidth=0.1, zorder=15)
+        except Exception as e:
+            # print(e)
+            pass
 
+if DRAW_EVENT_POINTS:
+    print("Drawing events")
+    flat_map.scatter([event.longitude for event in adult_events], [event.latitude for event in adult_events], latlon=True, c='r', marker='x', s=0.3, linewidth=0.1, zorder=2)
+if DRAW_VORONOI_VERTICES:
+    print("Drawing Voronoi vertices")
+    flat_map.scatter(vertices_latlon[:, 1], vertices_latlon[:, 0], latlon=True, c='b', marker='x', s=1)
 
-for vertex in vertices_latlon:
-    add_latlon_to_map(vertex[0], vertex[1], img_buffer, Shape.PLUS)
-
-print("Adding events to map")
-for event in adult_events:
-    add_latlon_to_map(event.latitude, event.longitude, img_buffer, Shape.CROSS)
-
-background = Image.open("assets/Mercator_projection_Square.jpg")
-# Apply the mask
-background = background.convert("L")
-background = np.array(background)
-background[img_buffer == 0] = 0
-img = Image.fromarray(background)
-img.save("map.png")
-
-# img = Image.fromarray(img_buffer)
-# img.save("map.png")
-
-# breakpoint()
+plt.savefig('map.png', dpi=1000)
