@@ -30,6 +30,7 @@ class Map(Basemap):
             super().__init__(projection="robin", lon_0=0, resolution=quality)
         else:
             raise ValueError("Invalid map type")
+        self.map_type = map_type
         self.drawcoastlines(linewidth=0.25)
         # self.drawcountries(linewidth=0.25)
         # self.fillcontinents(color='coral')
@@ -45,11 +46,14 @@ class Map(Basemap):
         **kwargs
     ):
         # If the angle between the start and end is too small, use a very small del_s
+        # Also make the linewidth smaller
         del_s = 80 if method == GreatCircleMethod.LOW_RES else 100
-        if abs(angle_diff(start[0], end[0]) < 5) or abs(
-            angle_diff(start[1], end[1]) < 5
-        ):
+        lat_diff = abs(angle_diff(start[0], end[0]))
+        lon_diff = abs(angle_diff(start[1], end[1]))
+        if lat_diff < 5 or lon_diff < 5:
             del_s = 1
+        if lat_diff < .5 and lon_diff < .5:
+            linewidth *= .5
 
         if method == GreatCircleMethod.DEFAULT:
             self.drawgreatcircle(

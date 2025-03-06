@@ -3,25 +3,29 @@ from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
 from scipy.spatial import SphericalVoronoi, geometric_slerp
 
 import libs.parkrun_api.parkrun_api as parkrun
-import libs.coordinates as coords
 import libs.projections as proj
 import libs.mapping as mapping
 
 GENERATE_SPHERE_PLOT = False
 DRAW_VORONOI_VERTICES = False
 DRAW_EVENT_POINTS = True
+JUNIOR_PARKRUN = False
+SMALL_SAMPLE = False
+IMG_DPI = 2000
 
 print("Getting parkrun events")
 events: List[parkrun.Event] = parkrun.Event.GetAllEvents()
 adult_events = [event for event in events if event.seriesId == 1]
 junior_events = [event for event in events if event.seriesId == 2]
 
+event_locations = junior_events if JUNIOR_PARKRUN else adult_events
+if SMALL_SAMPLE:
+    event_locations = event_locations[:100]
 
-points = [proj.latlon_to_ecef(event.latitude, event.longitude) for event in adult_events]
+points = [proj.latlon_to_ecef(event.latitude, event.longitude) for event in event_locations]
 points_norm = np.array([point / np.linalg.norm(point) for point in points])  # TODO probably doesn't need to be normalised
 
 print("Calculating spherical voronoi")
@@ -31,7 +35,7 @@ sv = SphericalVoronoi(points_norm, radius, center)
 sv.sort_vertices_of_regions()
 t_vals = np.linspace(0, 1, 2000)
 
-if GENERATE_SPHERE_PLOT:
+if GENERATE_SPHERE_PLOT:  # TODO tidy this up
     print("Generating sphere plot")
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -89,16 +93,26 @@ for region in sv.regions:
         start = vertices_latlon[region][i]
         end = vertices_latlon[region][(i + 1) % n]
         try:
-            flat_map.drawgreatcircle_simple(start, end, method=mapping.GreatCircleMethod.REDRAW, linewidth=0.1, zorder=15)
+            flat_map.drawgreatcircle_simple(start, end, method=mapping.GreatCircleMethod.REDRAW, linewidth=0.05, zorder=10)
         except Exception as e:
-            # print(e)
             pass
 
 if DRAW_EVENT_POINTS:
     print("Drawing events")
-    flat_map.scatter([event.longitude for event in adult_events], [event.latitude for event in adult_events], latlon=True, c='r', marker='x', s=0.3, linewidth=0.1, zorder=2)
+    flat_map.scatter([event.longitude for event in event_locations], [event.latitude for event in event_locations], latlon=True, c='r', marker='x', s=0.1, linewidth=0.05, zorder=2)
 if DRAW_VORONOI_VERTICES:
     print("Drawing Voronoi vertices")
     flat_map.scatter(vertices_latlon[:, 1], vertices_latlon[:, 0], latlon=True, c='b', marker='x', s=1)
 
-plt.savefig('map.png', dpi=1000)
+if flat_map.map_type == mapping.MapType.MERCATOR:
+    plt.tight_layout(pad=0)
+    plt.savefig('map.png', bbox_inches='tight', pad_inches=0.0, dpi=IMG_DPI)
+elif flat_map.map_type == mapping.MapType.ROBINSON:
+    plt.savefig('map.png', dpi=IMG_DPI)
+
+# TODO remove border around map
+# TODO see mapping.py
+# TODO increase resolution (dpi)
+# TODO tidy up code
+# TODO add argparse stuff
+# TODO calculate area of regions
