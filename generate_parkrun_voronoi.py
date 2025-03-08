@@ -44,6 +44,7 @@ PRINT_STATS = args.printstats
 
 class Location:
     STATIC_ID = 0
+
     def __init__(self, latitude, longitude, name=""):
         self.latitude = latitude
         self.longitude = longitude
@@ -174,7 +175,7 @@ if PRINT_STATS:
     loc_area_pairs = zip(locations, areas)
     loc_area_pairs = sorted(loc_area_pairs, key=lambda x: x[1], reverse=False)
     for location, area in loc_area_pairs:
-        print("\"{}\": {:.1f} km^2".format(location.name, area))
+        print('"{}": {:.1f} km^2'.format(location.name, area))
     print("Number of regions:", len(sv.regions))
     print("Number of vertices:", len(sv.vertices))
 

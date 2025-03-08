@@ -17,9 +17,15 @@ tf_latlon_to_ecef = Transformer.from_crs(latlon, ecef)
 tf_ecef_to_latlon = Transformer.from_crs(ecef, latlon)
 tf_ecef_to_mercator = Transformer.from_crs(ecef, mercator)
 
+
 def latlon_to_ecef(latitude, longitude):
     points = tf_latlon_to_ecef.transform(latitude, longitude, 0)
-    return (points[0]/EARTH_RADIUS, points[1]/EARTH_RADIUS, points[2]/EARTH_RADIUS)
+    return (
+        points[0] / EARTH_RADIUS,
+        points[1] / EARTH_RADIUS,
+        points[2] / EARTH_RADIUS,
+    )
+
 
 def ecef_to_latlon(x, y, z):
     x = x * EARTH_RADIUS
@@ -27,18 +33,24 @@ def ecef_to_latlon(x, y, z):
     z = z * EARTH_RADIUS
     return tf_ecef_to_latlon.transform(x, y, z)[:2]
 
+
 def latlon_to_mercator(latitude, longitude):
     return tf_latlon_to_mercator.transform(latitude, longitude)
 
+
 def ecef_to_mercator(x, y, z):
     return tf_ecef_to_mercator.transform(x, y, z)[:2]
+
 
 def mercator_to_array(merc_x, merc_y, map_width, map_height):
     merc_x = (merc_x / EARTH_CIRCUMFERENCE + 0.5) * map_width
     merc_y = (0.5 - merc_y / EARTH_CIRCUMFERENCE) * map_height
     return int(round(merc_x)), int(round(merc_y))
 
-def pixels_between_mercator_points(merc_x1, merc_y1, merc_x2, merc_y2, map_width, map_height):
+
+def pixels_between_mercator_points(
+    merc_x1, merc_y1, merc_x2, merc_y2, map_width, map_height
+):
     """
     The number of pixels between two points on a mercator map, following the great circle path
 

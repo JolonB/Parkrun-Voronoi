@@ -52,8 +52,8 @@ class Map(Basemap):
         lon_diff = abs(angle_diff(start[1], end[1]))
         if lat_diff < 5 or lon_diff < 5:
             del_s = 1
-        if lat_diff < .5 and lon_diff < .5:
-            linewidth *= .5
+        if lat_diff < 0.5 and lon_diff < 0.5:
+            linewidth *= 0.5
 
         if method == GreatCircleMethod.DEFAULT:
             self.drawgreatcircle(
