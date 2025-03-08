@@ -35,6 +35,7 @@ DRAW_EVENT_POINTS = args.drawlocs
 JUNIOR_PARKRUN = args.junior
 IMG_DPI = args.dpi
 GENERATE_CSV = args.csv is not None
+PRINT_STATS = args.printstats
 
 ########################################
 # Get points
@@ -42,10 +43,15 @@ GENERATE_CSV = args.csv is not None
 
 
 class Location:
+    STATIC_ID = 0
     def __init__(self, latitude, longitude, name=""):
         self.latitude = latitude
         self.longitude = longitude
-        self.name = name if name else "Unnamed"
+        if name:
+            self.name = name
+        else:
+            self.name = "Unnamed{}".format(Location.STATIC_ID)
+            Location.STATIC_ID += 1
 
     def __str__(self):
         return "{}: ({}, {})".format(self.name, self.latitude, self.longitude)
@@ -154,12 +160,22 @@ if DRAW_VORONOI_VERTICES:
         s=1,
     )
 
+print("Saving map")
 if flat_map.map_type == mapping.MapType.MERCATOR:
     plt.tight_layout(pad=0)
     plt.savefig("map.png", bbox_inches="tight", pad_inches=0.0, dpi=IMG_DPI)
 elif flat_map.map_type == mapping.MapType.ROBINSON:
     plt.savefig("map.png", dpi=IMG_DPI)
 
+if PRINT_STATS:
+    areas = sv.calculate_areas()
+    radius_2_km = (proj.EARTH_RADIUS / 1000) ** 2
+    areas = [area * radius_2_km for area in areas]
+    loc_area_pairs = zip(locations, areas)
+    loc_area_pairs = sorted(loc_area_pairs, key=lambda x: x[1], reverse=False)
+    for location, area in loc_area_pairs:
+        print("\"{}\": {:.1f} km^2".format(location.name, area))
+    print("Number of regions:", len(sv.regions))
+    print("Number of vertices:", len(sv.vertices))
+
 # TODO see mapping.py
-# TODO tidy up code
-# TODO calculate area of regions
