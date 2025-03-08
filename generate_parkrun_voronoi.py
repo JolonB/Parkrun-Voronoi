@@ -1,3 +1,4 @@
+import argparse
 import os
 from typing import List
 
@@ -9,24 +10,64 @@ import libs.parkrun_api.parkrun_api as parkrun
 import libs.projections as proj
 import libs.mapping as mapping
 
-GENERATE_SPHERE_PLOT = False
-DRAW_VORONOI_VERTICES = False
-DRAW_EVENT_POINTS = True
-JUNIOR_PARKRUN = False
-SMALL_SAMPLE = False
-IMG_DPI = 2000
+parser = argparse.ArgumentParser(description='Generate a Voronoi diagram of parkrun events')
+parser.add_argument('--csv', type=str, help='CSV file to read coordinates from')
+parser.add_argument('--junior', action='store_true', help='Use junior parkrun events. Ignored if --csv is used')
+parser.add_argument('--dpi', type=int, default=2000, help='DPI of output image')
+parser.add_argument('--drawlocs', action='store_true', help='Draw location points')
+parser.add_argument('--drawverts', action='store_true', help='Draw Voronoi vertices')
+parser.add_argument('--printstats', action='store_true', help='Print statistics about the Voronoi diagram')
 
-print("Getting parkrun events")
-events: List[parkrun.Event] = parkrun.Event.GetAllEvents()
-adult_events = [event for event in events if event.seriesId == 1]
-junior_events = [event for event in events if event.seriesId == 2]
+args = parser.parse_args()
 
-event_locations = junior_events if JUNIOR_PARKRUN else adult_events
-if SMALL_SAMPLE:
-    event_locations = event_locations[:100]
+DRAW_VORONOI_VERTICES = args.drawverts
+DRAW_EVENT_POINTS = args.drawlocs
+JUNIOR_PARKRUN = args.junior
+IMG_DPI = args.dpi
+GENERATE_CSV = args.csv is not None
 
-points = [proj.latlon_to_ecef(event.latitude, event.longitude) for event in event_locations]
-points_norm = np.array([point / np.linalg.norm(point) for point in points])  # TODO probably doesn't need to be normalised
+########################################
+# Get points
+########################################
+
+class Location:
+    def __init__(self, latitude, longitude, name=""):
+        self.latitude = latitude
+        self.longitude = longitude
+        self.name = name if name else "Unnamed"
+    def __str__(self):
+        return "{}: ({}, {})".format(self.name, self.latitude, self.longitude)
+    def __repr__(self):
+        return "{},{},{}".format(self.latitude, self.longitude, self.name)
+
+print("Preparing location data")
+if GENERATE_CSV:
+    filename = args.csv
+    if not os.path.exists(filename):
+        print("Error: CSV file {} not found".format(filename))
+        exit(1)
+    points_data = np.genfromtxt(filename, dtype=str, delimiter=',').tolist()
+    num_columns = len(points_data[0])
+    if num_columns == 2:
+        locations = [Location(float(point[0]), float(point[1])) for point in points_data]
+    elif num_columns == 3:
+        locations = [Location(float(point[0]), float(point[1]), point[2]) for point in points_data]
+    else:
+        print("Error: CSV file must have two or three columns (latitude, longitude, optional name). Has {}".format(num_columns))
+        exit(1)
+else:
+    events: List[parkrun.Event] = parkrun.Event.GetAllEvents()
+    adult_events = [event for event in events if event.seriesId == 1]
+    junior_events = [event for event in events if event.seriesId == 2]
+    events = junior_events if JUNIOR_PARKRUN else adult_events
+    locations = [Location(event.latitude, event.longitude, event.shortName) for event in events]
+
+points = [proj.latlon_to_ecef(location.latitude, location.longitude) for location in locations]
+points_norm = np.array([point / np.linalg.norm(point) for point in points])
+
+########################################
+# Calculate Voronoi
+########################################
 
 print("Calculating spherical voronoi")
 radius = 1
@@ -35,44 +76,8 @@ sv = SphericalVoronoi(points_norm, radius, center)
 sv.sort_vertices_of_regions()
 t_vals = np.linspace(0, 1, 2000)
 
-if GENERATE_SPHERE_PLOT:  # TODO tidy this up
-    print("Generating sphere plot")
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    u = np.linspace(0, 2 * np.pi, 100)
-    v = np.linspace(0, np.pi, 100)
-    x = np.outer(np.cos(u), np.sin(v))*.95
-    y = np.outer(np.sin(u), np.sin(v))*.95
-    z = np.outer(np.ones(np.size(u)), np.cos(v))*.95
-    ax.plot_surface(x, y, z, color='y', alpha=0.7)
-    ax.scatter(points_norm[:, 0], points_norm[:, 1], points_norm[:, 2], c='b')
-    ax.scatter(sv.vertices[:, 0], sv.vertices[:, 1], sv.vertices[:, 2],
-                    c='g', alpha=0.05)
-    for region in sv.regions:
-        n = len(region)
-        for i in range(n):
-            start = sv.vertices[region][i]
-            end = sv.vertices[region][(i + 1) % n]
-            result = geometric_slerp(start, end, t_vals)
-            ax.plot(result[..., 0],
-                    result[..., 1],
-                    result[..., 2],
-                    c='k')
-    try:
-        os.mkdir('output')
-    except FileExistsError:
-        pass
-
-    STEP = 20
-    for i in range(360 // STEP):
-        print("Drawing {}".format(i))
-        ax.azim = STEP*i
-        ax.elev = 10
-        fig.set_size_inches(4, 4)
-        plt.savefig('output/foo_{}.png'.format(i))
-
 ########################################
-# FLATTEN IMAGE
+# Mercator Plot
 ########################################
 
 flat_map = mapping.Map(mapping.MapType.MERCATOR, quality='l')
@@ -98,8 +103,8 @@ for region in sv.regions:
             pass
 
 if DRAW_EVENT_POINTS:
-    print("Drawing events")
-    flat_map.scatter([event.longitude for event in event_locations], [event.latitude for event in event_locations], latlon=True, c='r', marker='x', s=0.1, linewidth=0.05, zorder=2)
+    print("Drawing location points")
+    flat_map.scatter([location.longitude for location in locations], [location.latitude for location in locations], latlon=True, c='r', marker='x', s=0.1, linewidth=0.05, zorder=2)
 if DRAW_VORONOI_VERTICES:
     print("Drawing Voronoi vertices")
     flat_map.scatter(vertices_latlon[:, 1], vertices_latlon[:, 0], latlon=True, c='b', marker='x', s=1)
@@ -114,5 +119,4 @@ elif flat_map.map_type == mapping.MapType.ROBINSON:
 # TODO see mapping.py
 # TODO increase resolution (dpi)
 # TODO tidy up code
-# TODO add argparse stuff
 # TODO calculate area of regions
