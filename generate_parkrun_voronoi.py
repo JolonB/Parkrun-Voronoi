@@ -97,6 +97,7 @@ else:
 points = [
     proj.latlon_to_ecef(location.latitude, location.longitude) for location in locations
 ]
+# TODO could avoid normalising if we use the Earth radius in the Voronoi calculation
 points_norm = np.array([point / np.linalg.norm(point) for point in points])
 
 ########################################
@@ -140,14 +141,15 @@ for region in sv.regions:
 
 if DRAW_EVENT_POINTS:
     print("Drawing location points")
+    n_points = len(locations)
     flat_map.scatter(
         [location.longitude for location in locations],
         [location.latitude for location in locations],
         latlon=True,
         c="r",
         marker="x",
-        s=0.1,
-        linewidth=0.05,
+        s=2-0.0009*n_points,  # this just works well
+        linewidth=0.25-0.00009*n_points,  # this just works well
         zorder=2,
     )
 if DRAW_VORONOI_VERTICES:
@@ -178,5 +180,3 @@ if PRINT_STATS:
         print('"{}": {:.1f} km^2'.format(location.name, area))
     print("Number of regions:", len(sv.regions))
     print("Number of vertices:", len(sv.vertices))
-
-# TODO see mapping.py
