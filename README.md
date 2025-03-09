@@ -92,11 +92,11 @@ And the (much less impressive) 10 smallest Voronoi regions are:
 
 ## Example CSVs
 
-Refer to the example CSV files, `capital_cities_starting_with_W.csv`, `settings_of_animated_movies.csv`, and `some_points.csv` for help setting up a custom CSV file of your own.
+Refer to the example CSV files in the csv directory, `capital_cities_starting_with_W.csv`, `settings_of_animated_movies.csv`, and `some_points.csv` for help setting up a custom CSV file of your own.
 Run the following command to generate an image using custom data:
 
 ```shell
-python generate_parkrun_voronoi.py --csv settings_of_animated_movies.csv
+python generate_parkrun_voronoi.py --csv csv/settings_of_animated_movies.csv
 ```
 
 As you may know if you are a parkrunner, the 5K app contains a map that can have a Voronoi layer applied on top of it.
