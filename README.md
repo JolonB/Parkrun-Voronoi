@@ -11,6 +11,9 @@ Their map also doesn't wrap around at the international date line, meaning Voron
 But I don't blame the 5K app developers for this, it's a lot of annoying maths to get it working correctly.
 In fact, my map probably isn't even perfect, but I guess it's a bit more accurate.
 
+You can also run this with your own dataset.
+Refer to [Example CSVs](#Example-CSVs) for more information.
+
 ## Running
 
 Set up virtual environment with:
@@ -99,13 +102,11 @@ Run the following command to generate an image using custom data:
 python generate_parkrun_voronoi.py --csv csv/settings_of_animated_movies.csv
 ```
 
-As you may know if you are a parkrunner, the 5K app contains a map that can have a Voronoi layer applied on top of it.
-This produces regions, each containing one parkrun, within which each location is closer to the contained parkrun than it is to any other parkrun.
-There is only one problem with the one in the 5K app: it doesn't take into account the shape of the earth.
-This is clear because all of the points are straight, but they should actually curve, particularly as they get closer to the poles.
-This means that the 5K app calculated the Voronoi points using points that had already been projected to the Mercator space.
-Their map also doesn't wrap around at the international date line, meaning Voronoi regions are cut off at this point.
-But I don't blame the 5K app developers for this, it's a lot of annoying maths to get it working correctly, but I desperately wanted a better map.
+A CSV file should contain either 2 or 3 columns.
+The first two columns must always be latitude and longitude, respectively, in degrees.
+The optional third column should be a name for the point, which is useful if using the `--printstats` flag.
+If only some locations have a name, you should make sure all rows have 3 columns and not just the ones with names.
+The third column can be produced by appending a single comma to the end of a 2 column line.
 
 ## My Approach
 
